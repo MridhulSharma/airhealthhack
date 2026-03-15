@@ -56,27 +56,15 @@ export default function Car3D({
       }
     });
 
-    // Find wheel objects by common naming conventions
+    // Find wheel objects by GLTF node names
     wheelRF.current =
-      scene.getObjectByName("WHEEL_RF_185") ??
-      scene.getObjectByName("wheel_rf") ??
-      scene.getObjectByName("Wheel_RF") ??
-      undefined;
+      scene.getObjectByName("WHEEL_RF_185") ?? undefined;
     wheelLF.current =
-      scene.getObjectByName("WHEEL_LF_183") ??
-      scene.getObjectByName("wheel_lf") ??
-      scene.getObjectByName("Wheel_LF") ??
-      undefined;
+      scene.getObjectByName("WHEEL_LF_297") ?? undefined;
     wheelLR.current =
-      scene.getObjectByName("WHEEL_LR_187") ??
-      scene.getObjectByName("wheel_lr") ??
-      scene.getObjectByName("Wheel_LR") ??
-      undefined;
+      scene.getObjectByName("WHEEL_LR_306") ?? undefined;
     wheelRR.current =
-      scene.getObjectByName("WHEEL_RR_189") ??
-      scene.getObjectByName("wheel_rr") ??
-      scene.getObjectByName("Wheel_RR") ??
-      undefined;
+      scene.getObjectByName("WHEEL_RR_316") ?? undefined;
   }, [scene]);
 
   useFrame(() => {

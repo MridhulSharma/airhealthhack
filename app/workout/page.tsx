@@ -67,16 +67,24 @@ export default function WorkoutPage() {
 
   // ── Webcam PiP ──────────────────────────────────────────────────────────
   const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
+  // Re-run after loadingStage so the video element is mounted
   useEffect(() => {
-    let stream: MediaStream | null = null;
+    if (loadingStage !== "ready") return;
+
+    // Already have a stream — just reattach
+    if (streamRef.current) {
+      if (videoRef.current) videoRef.current.srcObject = streamRef.current;
+      return;
+    }
 
     navigator.mediaDevices
       .getUserMedia({ video: true })
       .then((s) => {
-        stream = s;
+        streamRef.current = s;
         if (videoRef.current) {
-          videoRef.current.srcObject = stream;
+          videoRef.current.srcObject = s;
         }
       })
       .catch(() => {
@@ -84,9 +92,10 @@ export default function WorkoutPage() {
       });
 
     return () => {
-      stream?.getTracks().forEach((t) => t.stop());
+      streamRef.current?.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
     };
-  }, []);
+  }, [loadingStage]);
 
   if (!selectedTheme) return null;
 
@@ -201,7 +210,8 @@ export default function WorkoutPage() {
           autoPlay
           muted
           playsInline
-          className="h-36 w-48 rounded-xl border border-white/20 object-cover bg-black"
+          className="rounded-xl border border-white/20 object-cover bg-black"
+          style={{ width: 230, height: 173 }}
         />
       </div>
 
