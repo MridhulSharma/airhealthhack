@@ -214,13 +214,28 @@ class CurlAnalyzer:
 # ── WebSocket broadcast ───────────────────────────────────────────────────────
 connected_clients = set()
 latest_payload = {}
+analyzer_ref = [None]  # mutable ref so ws_handler can access the analyzer
 
 async def ws_handler(websocket):
     connected_clients.add(websocket)
     print(f"Client connected. Total: {len(connected_clients)}")
     try:
-        async for _ in websocket:
-            pass
+        async for message in websocket:
+            try:
+                data = json.loads(message)
+                if data.get("command") == "reset":
+                    if analyzer_ref[0] is not None:
+                        analyzer_ref[0].reps = 0
+                        analyzer_ref[0].calib_done = False
+                        analyzer_ref[0].phase = "idle"
+                        analyzer_ref[0].rom_max = [0.0, 0.0]
+                        analyzer_ref[0].rom_min = [999.0, 999.0]
+                        analyzer_ref[0].active_issues.clear()
+                        analyzer_ref[0].active_flags.clear()
+                        analyzer_ref[0].last_rom_issues.clear()
+                        print("Analyzer reset by client")
+            except:
+                pass
     except:
         pass
     finally:
@@ -241,6 +256,7 @@ def run_pose_detection(loop):
     )
     cap = cv2.VideoCapture(0)
     analyzer = CurlAnalyzer()
+    analyzer_ref[0] = analyzer
 
     with vision.PoseLandmarker.create_from_options(options) as landmarker:
         print(f"Pose server running — ws://localhost:{WS_PORT}")

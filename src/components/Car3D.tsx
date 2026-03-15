@@ -27,6 +27,7 @@ export default function Car3D({
   const { scene } = useGLTF(CAR_URL);
   const internalRef = useRef<THREE.Group>(null);
   const carGroupRef = groupRef ?? internalRef;
+  const bodyRef = useRef<THREE.Group>(null);
 
   const wheelRF = useRef<THREE.Object3D | undefined>(undefined);
   const wheelLF = useRef<THREE.Object3D | undefined>(undefined);
@@ -92,12 +93,14 @@ export default function Car3D({
     if (wheelLR.current) wheelLR.current.rotation.x += wheelSpin;
     if (wheelRR.current) wheelRR.current.rotation.x += wheelSpin;
 
-    // Body roll from lateral force
-    carGroupRef.current.rotation.z = THREE.MathUtils.lerp(
-      carGroupRef.current.rotation.z,
-      lateralForce * -0.015,
-      0.08
-    );
+    // Body roll on inner group — avoids conflicting with quaternion on outer group
+    if (bodyRef.current) {
+      bodyRef.current.rotation.z = THREE.MathUtils.lerp(
+        bodyRef.current.rotation.z,
+        lateralForce * -0.015,
+        0.08
+      );
+    }
 
     // Boost rearlight glow
     if (rearlightMat.current) {
@@ -112,8 +115,10 @@ export default function Car3D({
 
   return (
     <group ref={carGroupRef}>
-      {/* SCALE_CALIBRATION: adjust scale after first render */}
-      <primitive object={scene} scale={[80, 80, 80]} />
+      <group ref={bodyRef}>
+        {/* SCALE_CALIBRATION: adjust scale after first render */}
+        <primitive object={scene} scale={[80, 80, 80]} />
+      </group>
     </group>
   );
 }

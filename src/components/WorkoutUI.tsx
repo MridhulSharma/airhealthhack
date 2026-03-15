@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useGameStore } from "@/game/GameState";
+import { useSpeech } from "@/hooks/useSpeech";
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 const HUD =
@@ -38,6 +39,7 @@ interface WorkoutUIProps {
 // ── Component ───────────────────────────────────────────────────────────────
 export default function WorkoutUI({ calibrating, calibReps, fatigueIssues }: WorkoutUIProps) {
   const router = useRouter();
+  const { speak } = useSpeech();
   const repCount = useGameStore((s) => s.repCount);
   const targetReps = useGameStore((s) => s.targetReps);
   const progress = useGameStore((s) => s.progress);
@@ -54,6 +56,23 @@ export default function WorkoutUI({ calibrating, calibReps, fatigueIssues }: Wor
   const setCurrentLapTime = useGameStore((s) => s.setCurrentLapTime);
 
   const pct = Math.min(Math.round(progress * 100), 100);
+
+  // Speak fatigue warnings aloud
+  const prevFatigueRef = useRef<string[]>([]);
+  useEffect(() => {
+    if (fatigueIssues.length === 0) {
+      prevFatigueRef.current = [];
+      return;
+    }
+    // Only speak new issues not already spoken
+    const newIssues = fatigueIssues.filter(
+      (issue) => !prevFatigueRef.current.includes(issue)
+    );
+    if (newIssues.length > 0) {
+      speak(newIssues[0], { priority: "high", rate: 1.0 });
+    }
+    prevFatigueRef.current = fatigueIssues;
+  }, [fatigueIssues, speak]);
 
   // ── Lap timer ───────────────────────────────────────────────────────────
   const lapStart = useRef(Date.now());

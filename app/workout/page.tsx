@@ -41,6 +41,7 @@ export default function WorkoutPage() {
     calibrating,
     calibReps,
     fatigueIssues,
+    resetCounter,
   } = usePoseDetection();
   useRepCounter({ repCount, formScore });
 
@@ -172,7 +173,7 @@ export default function WorkoutPage() {
           <motion.button
             whileHover={isConnected ? { scale: 1.05 } : {}}
             whileTap={isConnected ? { scale: 0.95 } : {}}
-            onClick={() => isConnected && startWorkout()}
+            onClick={() => { if (isConnected) { resetCounter(); startWorkout(); } }}
             disabled={!isConnected}
             className={`rounded-full px-10 py-4 text-xl font-bold transition-colors ${
               isConnected

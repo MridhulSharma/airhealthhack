@@ -17,44 +17,65 @@ function boostFromForm(score: number): number {
 }
 
 export function useRepCounter({ repCount, formScore }: RepData) {
-  const incrementRep = useGameStore((s) => s.incrementRep);
-  const setFormScore = useGameStore((s) => s.setFormScore);
-  const setBoost = useGameStore((s) => s.setBoost);
-  const storeCount = useGameStore((s) => s.repCount);
   const isStarted = useGameStore((s) => s.isStarted);
+  const setFormScore = useGameStore((s) => s.setFormScore);
 
   const boostTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const repOffsetRef = useRef<number | null>(null);
+  const lastWsCount = useRef<number>(repCount);
 
-  // When workout starts, snapshot the current WebSocket repCount as offset
-  // so only NEW reps after this point count toward the game.
+  // When workout starts, capture offset so only NEW reps count.
+  // When workout is not started, keep resetting offset to current repCount.
   useEffect(() => {
     if (isStarted) {
-      repOffsetRef.current = null; // will be set on next repCount change
+      // Lock the offset to whatever the WebSocket count is right now
+      repOffsetRef.current = repCount;
+    } else {
+      repOffsetRef.current = null;
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isStarted]);
 
+  // Only react to WebSocket repCount changes — never to store changes
   useEffect(() => {
-    // Capture offset on the first rep update after workout starts
-    if (repOffsetRef.current === null) {
-      repOffsetRef.current = repCount;
+    // Don't process reps before workout starts
+    if (!isStarted) {
+      lastWsCount.current = repCount;
       return;
     }
 
+    // Set offset on first update after start
+    if (repOffsetRef.current === null) {
+      repOffsetRef.current = repCount;
+      lastWsCount.current = repCount;
+      return;
+    }
+
+    // Only process if the WebSocket count actually increased since last time
+    if (repCount <= lastWsCount.current) return;
+    lastWsCount.current = repCount;
+
+    // Calculate how many reps since workout started
     const adjustedReps = repCount - repOffsetRef.current;
+
+    // Only increment if adjusted count is ahead of store count
+    const storeCount = useGameStore.getState().repCount;
     if (adjustedReps > storeCount) {
-      incrementRep();
+      // Increment exactly once
+      useGameStore.getState().incrementRep();
 
       // Trigger boost
       const intensity = boostFromForm(formScore);
-      setBoost(true, intensity);
+      useGameStore.getState().setBoost(true, intensity);
 
       if (boostTimerRef.current) clearTimeout(boostTimerRef.current);
       boostTimerRef.current = setTimeout(() => {
-        setBoost(false, 0);
+        useGameStore.getState().setBoost(false, 0);
       }, 800);
     }
-  }, [repCount, storeCount, incrementRep, setBoost, formScore]);
+    // Only depend on repCount from WebSocket — NOT on store state or actions
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [repCount]);
 
   useEffect(() => {
     setFormScore(formScore);

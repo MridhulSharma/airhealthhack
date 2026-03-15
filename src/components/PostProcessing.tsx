@@ -7,7 +7,6 @@ import {
   Vignette,
   ToneMapping,
 } from "@react-three/postprocessing";
-import { ToneMappingMode } from "postprocessing";
 import { useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Vector2, MathUtils } from "three";
@@ -38,7 +37,7 @@ export function PostProcessing({ boostActive }: Props) {
       <Bloom luminanceThreshold={0.3} intensity={1.4} mipmapBlur />
       <ChromaticAberration offset={aberrationOffset.current} />
       <Vignette eskil={false} offset={0.3} darkness={0.7} />
-      <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
+      <ToneMapping />
     </EffectComposer>
   );
 }

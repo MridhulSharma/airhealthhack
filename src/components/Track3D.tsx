@@ -26,10 +26,11 @@ export default function Track3D() {
     });
   }, [scene]);
 
-  // Collect road meshes and log bounding boxes
+  // Collect road meshes for raycasting
   useEffect(() => {
     if (!scene) return;
-    const meshes: THREE.Mesh[] = [];
+    const primary: THREE.Mesh[] = [];
+    const secondary: THREE.Mesh[] = [];
     scene.traverse((obj) => {
       if ((obj as THREE.Mesh).isMesh) {
         const name = obj.name.toLowerCase();
@@ -37,23 +38,21 @@ export default function Track3D() {
           name.includes("tarmac") ||
           name.includes("road") ||
           name.includes("asphalt") ||
-          name.includes("track") ||
+          name.includes("track")
+        ) {
+          primary.push(obj as THREE.Mesh);
+        } else if (
           name.includes("white") ||
           name.includes("line") ||
           name.includes("runoff")
         ) {
-          meshes.push(obj as THREE.Mesh);
-          const box = new THREE.Box3().setFromObject(obj);
-          const center = new THREE.Vector3();
-          box.getCenter(center);
-          console.log(
-            `ROAD MESH: ${obj.name} | Y center: ${center.y.toFixed(3)} | Y min: ${box.min.y.toFixed(3)} | Y max: ${box.max.y.toFixed(3)} | X range: [${box.min.x.toFixed(2)}, ${box.max.x.toFixed(2)}] | Z range: [${box.min.z.toFixed(2)}, ${box.max.z.toFixed(2)}]`
-          );
+          secondary.push(obj as THREE.Mesh);
         }
       }
     });
+    const meshes = [...primary, ...secondary];
     (window as any).__roadMeshes = meshes;
-    console.log("Road meshes collected:", meshes.length);
+    console.log(`Road meshes: ${primary.length} primary, ${secondary.length} secondary`);
   }, [scene]);
 
   return (

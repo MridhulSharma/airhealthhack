@@ -28,6 +28,8 @@ function GameLoop() {
   const raycaster = useRef(new THREE.Raycaster());
   const downVec = useRef(new THREE.Vector3(0, -1, 0));
   const smoothedY = useRef<number | null>(null);
+  const smoothedQuat = useRef(new THREE.Quaternion());
+  const quatInitialized = useRef(false);
 
   useFrame(() => {
     if (!isStarted) return;
@@ -43,12 +45,11 @@ function GameLoop() {
 
     // Advance car along spline
     const speedFactor = speed * 0.00018 + (boostActive ? 0.00038 : 0);
-    tRef.current = (tRef.current + speedFactor) % 1;
+    tRef.current = ((tRef.current + speedFactor) % 1 + 1) % 1;
 
     const pos = raceEngine.getTrackPosition(tRef.current);
-    const lookAheadPos = raceEngine.getTrackPosition(
-      (tRef.current + 0.008) % 1
-    );
+    const lookAheadT = ((tRef.current + 0.005) % 1 + 1) % 1;
+    const lookAheadPos = raceEngine.getTrackPosition(lookAheadT);
 
     // Raycast downward onto the road mesh for exact surface Y
     const roadMeshes = (window as any).__roadMeshes as
@@ -59,7 +60,7 @@ function GameLoop() {
 
     if (roadMeshes && roadMeshes.length > 0) {
       raycaster.current.set(
-        new THREE.Vector3(pos.x, pos.y + 60, pos.z),
+        new THREE.Vector3(pos.x, pos.y + 80, pos.z),
         downVec.current
       );
       const hits = raycaster.current.intersectObjects(roadMeshes, false);
@@ -71,7 +72,7 @@ function GameLoop() {
           smoothedY.current = THREE.MathUtils.lerp(
             smoothedY.current,
             rawY,
-            0.25
+            0.2
           );
         }
         surfaceY = smoothedY.current;
@@ -80,26 +81,36 @@ function GameLoop() {
 
     positionRef.current.set(pos.x, surfaceY, pos.z);
 
-    // Car orientation — faces direction of travel including slope
-    const lookAheadWithY = new THREE.Vector3(
+    // Car orientation — use look-ahead with slope from driving line
+    const slopeY = lookAheadPos.y - pos.y;
+    const lookTarget = new THREE.Vector3(
       lookAheadPos.x,
-      surfaceY + (lookAheadPos.y - pos.y),
+      surfaceY + slopeY,
       lookAheadPos.z
     );
 
     const rotMatrix = new THREE.Matrix4().lookAt(
       positionRef.current,
-      lookAheadWithY,
+      lookTarget,
       new THREE.Vector3(0, 1, 0)
     );
-    quaternionRef.current.setFromRotationMatrix(rotMatrix);
+    const targetQuat = new THREE.Quaternion().setFromRotationMatrix(rotMatrix);
 
     // Flip 180° — car faces forward not backward
     const flip = new THREE.Quaternion().setFromAxisAngle(
       new THREE.Vector3(0, 1, 0),
       Math.PI
     );
-    quaternionRef.current.multiply(flip);
+    targetQuat.multiply(flip);
+
+    // Smooth quaternion to prevent jitter
+    if (!quatInitialized.current) {
+      smoothedQuat.current.copy(targetQuat);
+      quatInitialized.current = true;
+    } else {
+      smoothedQuat.current.slerp(targetQuat, 0.15);
+    }
+    quaternionRef.current.copy(smoothedQuat.current);
 
     // Lateral force for body roll
     const tangent = raceEngine.getTrackTangent(tRef.current);

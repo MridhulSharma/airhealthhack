@@ -59,9 +59,10 @@ export default function CameraRig({
     camera.position.copy(smoothedPos.current);
     camera.lookAt(smoothedLookAt.current);
 
-    // Speed-reactive FOV
+    // Speed-reactive FOV with max clamp
     if (camera instanceof THREE.PerspectiveCamera) {
-      camera.fov = THREE.MathUtils.lerp(camera.fov, 65 + speed * 2, 0.05);
+      const targetFov = Math.min(65 + speed * 2, 80);
+      camera.fov = THREE.MathUtils.lerp(camera.fov, targetFov, 0.05);
       camera.updateProjectionMatrix();
     }
 

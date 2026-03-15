@@ -119,6 +119,14 @@ export function usePoseDetection() {
     };
   }, [connect, startMock]);
 
+  // Send a reset command to Python pose server
+  const resetCounter = useCallback(() => {
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ command: "reset" }));
+    }
+    setRepCount(0);
+  }, []);
+
   return {
     landmarks,
     repCount,
@@ -133,5 +141,6 @@ export function usePoseDetection() {
     calibrating,
     calibReps,
     fatigueIssues,
+    resetCounter,
   };
 }
