@@ -45,14 +45,16 @@ export function usePoseDetection(): PoseData {
   const retryRef = useRef<NodeJS.Timeout | null>(null)
   const mockRepCount = useRef(0)
   const isMockRef = useRef(false)
+  const mountedRef = useRef(true)
 
   const startMock = useCallback(() => {
-    if (isMockRef.current) return
+    if (isMockRef.current || !mountedRef.current) return
     isMockRef.current = true
     console.log('[usePoseDetection] Starting mock mode')
     setData(d => ({ ...d, isMockMode: true, isConnected: true, error: null }))
 
     mockRef.current = setInterval(() => {
+      if (!mountedRef.current) return
       mockRepCount.current += 1
       const formScore = 70 + Math.floor(Math.random() * 30)
       const elbowAngle = 80 + Math.floor(Math.random() * 80)
@@ -77,6 +79,7 @@ export function usePoseDetection(): PoseData {
   }, [])
 
   const connect = useCallback(() => {
+    if (!mountedRef.current || isMockRef.current) return
     if (wsRef.current?.readyState === WebSocket.OPEN) return
 
     try {
@@ -99,6 +102,7 @@ export function usePoseDetection(): PoseData {
       }
 
       ws.onmessage = (e) => {
+        if (!mountedRef.current) return
         try {
           const payload = JSON.parse(e.data)
           setData({
@@ -128,9 +132,15 @@ export function usePoseDetection(): PoseData {
 
       ws.onclose = () => {
         clearTimeout(timeout)
+        if (!mountedRef.current) return
         setData(d => ({ ...d, isConnected: false }))
+        // Auto-reconnect if not in mock mode
         if (!isMockRef.current) {
-          retryRef.current = setTimeout(connect, RETRY_INTERVAL)
+          retryRef.current = setTimeout(() => {
+            if (mountedRef.current && !isMockRef.current) {
+              connect()
+            }
+          }, RETRY_INTERVAL)
         }
       }
     } catch {
@@ -139,8 +149,10 @@ export function usePoseDetection(): PoseData {
   }, [startMock, stopMock])
 
   useEffect(() => {
+    mountedRef.current = true
     connect()
     return () => {
+      mountedRef.current = false
       wsRef.current?.close()
       stopMock()
       if (retryRef.current) clearTimeout(retryRef.current)

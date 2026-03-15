@@ -14,6 +14,7 @@ function GameLoop() {
   const speed = useGameStore((s) => s.speed);
   const boostActive = useGameStore((s) => s.boostActive);
   const isStarted = useGameStore((s) => s.isStarted);
+  const isFinished = useGameStore((s) => s.isFinished);
   const completeLap = useGameStore((s) => s.completeLap);
 
   const tRef = useRef(0);
@@ -31,8 +32,21 @@ function GameLoop() {
   const smoothedQuat = useRef(new THREE.Quaternion());
   const quatInitialized = useRef(false);
 
+  // Pre-allocated objects to avoid per-frame GC pressure
+  const _rayOrigin = useRef(new THREE.Vector3());
+  const _lookTarget = useRef(new THREE.Vector3());
+  const _rotMatrix = useRef(new THREE.Matrix4());
+  const _targetQuat = useRef(new THREE.Quaternion());
+  const _flip = useRef(
+    new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI)
+  );
+  const _upVec = useRef(new THREE.Vector3(0, 1, 0));
+
   useFrame(() => {
     if (!isStarted) return;
+
+    // Stop car movement when finished
+    if (isFinished) return;
 
     // Boost light effect
     if (boostLightRef.current) {
@@ -59,10 +73,8 @@ function GameLoop() {
     let surfaceY = pos.y + 1.8; // safe fallback
 
     if (roadMeshes && roadMeshes.length > 0) {
-      raycaster.current.set(
-        new THREE.Vector3(pos.x, pos.y + 80, pos.z),
-        downVec.current
-      );
+      _rayOrigin.current.set(pos.x, pos.y + 80, pos.z);
+      raycaster.current.set(_rayOrigin.current, downVec.current);
       const hits = raycaster.current.intersectObjects(roadMeshes, false);
       if (hits.length > 0) {
         const rawY = hits[0].point.y + 1.8;
@@ -83,32 +95,20 @@ function GameLoop() {
 
     // Car orientation — use look-ahead with slope from driving line
     const slopeY = lookAheadPos.y - pos.y;
-    const lookTarget = new THREE.Vector3(
-      lookAheadPos.x,
-      surfaceY + slopeY,
-      lookAheadPos.z
-    );
+    _lookTarget.current.set(lookAheadPos.x, surfaceY + slopeY, lookAheadPos.z);
 
-    const rotMatrix = new THREE.Matrix4().lookAt(
-      positionRef.current,
-      lookTarget,
-      new THREE.Vector3(0, 1, 0)
-    );
-    const targetQuat = new THREE.Quaternion().setFromRotationMatrix(rotMatrix);
+    _rotMatrix.current.lookAt(positionRef.current, _lookTarget.current, _upVec.current);
+    _targetQuat.current.setFromRotationMatrix(_rotMatrix.current);
 
     // Flip 180° — car faces forward not backward
-    const flip = new THREE.Quaternion().setFromAxisAngle(
-      new THREE.Vector3(0, 1, 0),
-      Math.PI
-    );
-    targetQuat.multiply(flip);
+    _targetQuat.current.multiply(_flip.current);
 
     // Smooth quaternion to prevent jitter
     if (!quatInitialized.current) {
-      smoothedQuat.current.copy(targetQuat);
+      smoothedQuat.current.copy(_targetQuat.current);
       quatInitialized.current = true;
     } else {
-      smoothedQuat.current.slerp(targetQuat, 0.15);
+      smoothedQuat.current.slerp(_targetQuat.current, 0.15);
     }
     quaternionRef.current.copy(smoothedQuat.current);
 

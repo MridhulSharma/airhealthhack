@@ -8,6 +8,7 @@ import mediapipe as mp
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 import numpy as np
+import time
 from collections import deque
 import websockets
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -231,7 +232,7 @@ def run_pose_detection(loop):
             h, w = frame.shape[:2]
             rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
-            ts_ms = int(cap.get(cv2.CAP_PROP_POS_MSEC))
+            ts_ms = int(time.time() * 1000)
             result = landmarker.detect_for_video(mp_image, ts_ms)
 
             al, ar = 180.0, 180.0

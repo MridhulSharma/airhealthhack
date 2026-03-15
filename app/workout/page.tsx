@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { motion } from "framer-motion";
@@ -79,33 +79,6 @@ export default function WorkoutPage() {
     }
   }, [selectedTheme, router]);
 
-  // ── Webcam PiP ──────────────────────────────────────────────────────────
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-
-  useEffect(() => {
-    if (loadingStage !== "ready") return;
-
-    if (streamRef.current) {
-      if (videoRef.current) videoRef.current.srcObject = streamRef.current;
-      return;
-    }
-
-    navigator.mediaDevices
-      .getUserMedia({ video: true })
-      .then((s) => {
-        streamRef.current = s;
-        if (videoRef.current) {
-          videoRef.current.srcObject = s;
-        }
-      })
-      .catch(() => {});
-
-    return () => {
-      streamRef.current?.getTracks().forEach((t) => t.stop());
-      streamRef.current = null;
-    };
-  }, [loadingStage]);
 
   if (!selectedTheme) return null;
 
@@ -204,8 +177,8 @@ export default function WorkoutPage() {
         </motion.div>
       )}
 
-      {/* ── Live camera feed — bottom left ─────────────────────────────── */}
-      <div className="fixed bottom-4 left-4 z-20 flex flex-col gap-1">
+      {/* ── Pose server camera PiP (bottom center) ────────────────────── */}
+      <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-1">
         <div className="flex items-center gap-2 mb-1">
           <div
             className={`w-2 h-2 rounded-full ${
@@ -229,7 +202,7 @@ export default function WorkoutPage() {
         </div>
         <div
           className="relative rounded-xl overflow-hidden border border-white/20 bg-black"
-          style={{ width: 256, height: 192 }}
+          style={{ width: 320, height: 224 }}
         >
           {isConnected && !isMockMode ? (
             <img
