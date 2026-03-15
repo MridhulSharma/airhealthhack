@@ -227,16 +227,71 @@ class Scene3DErrorBoundary extends Component<
 
 export function Scene3D() {
   const [mounted, setMounted] = useState(false);
+  const [contextLost, setContextLost] = useState(false);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
   useEffect(() => setMounted(true), []);
+
+  // Handle WebGL context loss and recovery
+  useEffect(() => {
+    if (!mounted) return;
+
+    const handleContextLost = (e: Event) => {
+      e.preventDefault();
+      console.warn("[Scene3D] WebGL context lost — waiting for restore");
+      setContextLost(true);
+    };
+
+    const handleContextRestored = () => {
+      console.log("[Scene3D] WebGL context restored");
+      setContextLost(false);
+    };
+
+    const canvas = canvasRef.current;
+    if (canvas) {
+      canvas.addEventListener("webglcontextlost", handleContextLost);
+      canvas.addEventListener("webglcontextrestored", handleContextRestored);
+    }
+
+    return () => {
+      if (canvas) {
+        canvas.removeEventListener("webglcontextlost", handleContextLost);
+        canvas.removeEventListener("webglcontextrestored", handleContextRestored);
+      }
+    };
+  }, [mounted]);
+
   if (!mounted) return null;
+
+  if (contextLost) {
+    return (
+      <div className="flex h-full w-full items-center justify-center bg-black text-white">
+        <div className="text-center">
+          <p className="text-lg font-semibold">GPU context lost</p>
+          <p className="mt-2 text-sm text-gray-400">Waiting for WebGL to recover...</p>
+          <button
+            onClick={() => setContextLost(false)}
+            className="mt-4 rounded-full bg-white/10 px-6 py-2 text-sm hover:bg-white/20"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <Scene3DErrorBoundary>
       <Canvas
-        shadows
-        dpr={[1, 1.5]}
+        ref={canvasRef}
+        dpr={[1, 1.25]}
         camera={{ fov: 65, near: 0.1, far: 3000 }}
         style={{ position: "absolute", inset: 0 }}
+        gl={{
+          antialias: false,
+          powerPreference: "high-performance",
+          failIfMajorPerformanceCaveat: false,
+        }}
       >
         <RendererSetup />
         <fog attach="fog" args={["#0a0f1a", 200, 1200]} />
@@ -245,7 +300,7 @@ export function Scene3D() {
           position={[200, 300, 100]}
           intensity={1.5}
           castShadow
-          shadow-mapSize={[1024, 1024]}
+          shadow-mapSize={[512, 512]}
           shadow-camera-near={1}
           shadow-camera-far={2000}
           shadow-camera-left={-500}
@@ -254,7 +309,7 @@ export function Scene3D() {
           shadow-camera-bottom={-500}
         />
         <Environment preset="night" />
-        <Stars radius={800} depth={80} count={5000} factor={5} />
+        <Stars radius={800} depth={80} count={3000} factor={5} />
         <Suspense fallback={<LoadingFallback />}>
           <GameLoop />
         </Suspense>

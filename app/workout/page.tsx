@@ -41,7 +41,6 @@ export default function WorkoutPage() {
     calibrating,
     calibReps,
     fatigueIssues,
-    resetCounter,
   } = usePoseDetection();
   useRepCounter({ repCount, formScore });
 
@@ -66,27 +65,27 @@ export default function WorkoutPage() {
     }
   }, [selectedTheme, router]);
 
-  // ── Auto-launch pose server on mount ────────────────────────────────────
-  useEffect(() => {
-    fetch('/api/start-pose-server', { method: 'POST' })
-      .then(r => r.json())
-      .then(d => console.log('Pose server:', d.status))
-      .catch(e => console.log('Pose server launch failed (may already be running):', e))
-  }, []);
-
-  // ── MJPEG stream auto-retry ─────────────────────────────────────────────
-  const imgRef = useRef<HTMLImageElement>(null);
+  // ── Webcam PiP ──────────────────────────────────────────────────────────
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
-    const retry = setInterval(() => {
-      if (imgRef.current) {
-        // Force reload the stream src to retry connection
-        const src = imgRef.current.src
-        imgRef.current.src = ''
-        imgRef.current.src = src
-      }
-    }, 3000) // retry every 3s until stream connects
-    return () => clearInterval(retry)
+    let stream: MediaStream | null = null;
+
+    navigator.mediaDevices
+      .getUserMedia({ video: true })
+      .then((s) => {
+        stream = s;
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+      })
+      .catch(() => {
+        // Camera not available — PiP will just be hidden
+      });
+
+    return () => {
+      stream?.getTracks().forEach((t) => t.stop());
+    };
   }, []);
 
   if (!selectedTheme) return null;
@@ -173,7 +172,7 @@ export default function WorkoutPage() {
           <motion.button
             whileHover={isConnected ? { scale: 1.05 } : {}}
             whileTap={isConnected ? { scale: 0.95 } : {}}
-            onClick={() => { if (isConnected) { resetCounter(); startWorkout(); } }}
+            onClick={() => { if (isConnected) { startWorkout(); } }}
             disabled={!isConnected}
             className={`rounded-full px-10 py-4 text-xl font-bold transition-colors ${
               isConnected
@@ -186,10 +185,10 @@ export default function WorkoutPage() {
         </motion.div>
       )}
 
-      {/* Live pose camera feed — MJPEG stream from pose_server.py */}
+      {/* ── Webcam PiP ─────────────────────────────────────────────────── */}
       <div className="fixed bottom-4 left-4 z-20 flex flex-col gap-1">
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+        <div className="flex items-center gap-1.5">
+          <div className="h-2 w-2 animate-pulse rounded-full bg-red-500" />
           <span className="font-mono text-xs text-white">LIVE</span>
           {calibrating && (
             <span className="font-mono text-xs text-blue-300">
@@ -197,29 +196,13 @@ export default function WorkoutPage() {
             </span>
           )}
         </div>
-        <div className="relative rounded-xl overflow-hidden border border-white/20"
-             style={{ width: 354, height: 266 }}>
-          <img
-            ref={imgRef}
-            src="http://localhost:8766/video"
-            alt="Live pose feed"
-            className="w-full h-full object-cover"
-            onError={(e) => {
-              // If stream not ready, show placeholder
-              (e.target as HTMLImageElement).style.opacity = '0.3'
-            }}
-          />
-          {/* Fatigue warnings overlaid on camera feed */}
-          {fatigueIssues.length > 0 && (
-            <div className="absolute bottom-0 left-0 right-0 p-1 flex flex-col gap-0.5">
-              {fatigueIssues.slice(0, 2).map((issue, i) => (
-                <div key={i} className="bg-red-900/80 rounded px-2 py-0.5 font-mono text-xs text-red-300 text-center">
-                  ⚠️ {issue}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        <video
+          ref={videoRef}
+          autoPlay
+          muted
+          playsInline
+          className="h-36 w-48 rounded-xl border border-white/20 object-cover bg-black"
+        />
       </div>
 
       {/* ── Bottom-right HUD ─────────────────────────────────────────────── */}

@@ -100,3 +100,18 @@ body {
 ::-webkit-scrollbar-track { background: #050505; }
 ::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--warm); }
+
+/* ── VOLTA title styles ──────────────────────────────────────────────────── */
+.volta-title-wrap {
+  perspective: 800px;
+}
+
+.volta-letter {
+  display: inline-block;
+  transform-style: preserve-3d;
+  will-change: transform, opacity, filter;
+}
+
+.volta-streak {
+  will-change: width, opacity;
+}

@@ -1,8 +1,8 @@
 import "./globals.css";
 
 export const metadata = {
-  title: "PulseDrive",
-  description: "Motion-powered interactive fitness experience",
+  title: "VOLTA",
+  description: "Virtual Output & Live Training Arena",
 };
 
 export default function RootLayout({

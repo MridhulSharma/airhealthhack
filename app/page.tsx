@@ -40,7 +40,7 @@ const FEATURES = [
   {
     icon: "03",
     title: "Built for immersion",
-    text: "PulseDrive makes training feel reactive, cinematic, and rewarding instead of repetitive.",
+    text: "VOLTA makes training feel reactive, cinematic, and rewarding instead of repetitive.",
   },
 ];
 
@@ -68,7 +68,7 @@ const MARQUEE_ITEMS = [
   "live training system",
 ];
 
-export default function PulseDriveShowcase() {
+export default function VoltaShowcase() {
   const rootRef = useRef<HTMLDivElement>(null);
   const heroTitleRef = useRef<HTMLHeadingElement>(null);
   const heroKickerRef = useRef<HTMLSpanElement>(null);
@@ -90,6 +90,10 @@ export default function PulseDriveShowcase() {
       gsap.set(q(".marquee-track"), { xPercent: 0 });
       gsap.set(q(".hero-hr"), { scaleX: 0, transformOrigin: "left center" });
       gsap.set(q(".stat-bar"), { scaleX: 0, transformOrigin: "left center" });
+      // VOLTA title init
+      gsap.set(q(".volta-letter"), { y: 80, opacity: 0, rotateX: -90, scale: 0.6, filter: "blur(12px)" });
+      gsap.set(q(".volta-streak"), { width: 0, opacity: 0 });
+      gsap.set(q(".volta-glow"), { opacity: 0, scale: 0.3 });
 
       // ── Intro timeline ──────────────────────────────────────────────────
       const intro = gsap.timeline({ defaults: { ease: "power4.out" } });
@@ -105,12 +109,59 @@ export default function PulseDriveShowcase() {
           heroKickerRef.current,
           {
             duration: 1.2,
-            textContent: "motion-powered training system",
+            textContent: "virtual output & live training arena",
             ease: "none",
             snap: { textContent: 1 },
           },
           "-=0.35"
         )
+        // ── VOLTA letter slam ──
+        .to(
+          q(".volta-letter"),
+          {
+            y: 0,
+            opacity: 1,
+            rotateX: 0,
+            scale: 1,
+            filter: "blur(0px)",
+            duration: 0.7,
+            stagger: 0.08,
+            ease: "back.out(1.7)",
+          },
+          "-=0.4"
+        )
+        // ── Underline streak wipe ──
+        .to(
+          q(".volta-streak"),
+          {
+            width: "100%",
+            opacity: 1,
+            duration: 0.5,
+            ease: "power4.inOut",
+          },
+          "-=0.2"
+        )
+        // ── Glow burst behind VOLTA ──
+        .to(
+          q(".volta-glow"),
+          {
+            opacity: 0.5,
+            scale: 1,
+            duration: 0.6,
+            ease: "power2.out",
+          },
+          "-=0.5"
+        )
+        .to(
+          q(".volta-glow"),
+          {
+            opacity: 0,
+            scale: 1.5,
+            duration: 1.2,
+            ease: "power2.in",
+          },
+        )
+        // ── Subtitle + tagline slide in ──
         .to(
           q(".hero-line"),
           {
@@ -119,7 +170,7 @@ export default function PulseDriveShowcase() {
             duration: 1,
             stagger: 0.12,
           },
-          "-=0.6"
+          "-=1.4"
         )
         .to(
           q(".hero-hr"),
@@ -451,13 +502,13 @@ export default function PulseDriveShowcase() {
         <div className="mx-auto flex w-[min(1180px,calc(100%-32px))] items-center justify-between py-4">
           <a href="#top" className="nav-item flex items-center gap-3 group">
             <div className="relative flex h-10 w-10 items-center justify-center rounded-lg border border-[#e63946]/30 bg-[#e63946]/10 text-sm font-bold text-[#e63946] transition-all duration-300 group-hover:bg-[#e63946]/20 group-hover:border-[#e63946]/50">
-              PD
+              V
               <div className="pulse-glow absolute inset-0 rounded-lg bg-[#e63946]/20 blur-md" />
             </div>
             <div>
-              <div className="text-[10px] font-bold uppercase tracking-[0.3em] text-[#e63946]/70">Interactive Fitness</div>
+              <div className="text-[10px] font-bold uppercase tracking-[0.3em] text-[#e63946]/70">Virtual Output & Live Training Arena</div>
               <div className="text-base font-bold tracking-wide">
-                PulseDrive
+                VOLTA
               </div>
             </div>
           </a>
@@ -498,21 +549,33 @@ export default function PulseDriveShowcase() {
               <span ref={heroKickerRef}>loading system</span>
             </div>
 
-            <h1
-              ref={heroTitleRef}
-              className="max-w-4xl text-5xl font-black uppercase leading-[0.92] tracking-tight md:text-7xl"
-            >
-              <div className="hero-line">Motion becomes</div>
-              <div className="hero-line">
-                <span className="bg-gradient-to-r from-[#e63946] to-[#ff6b35] bg-clip-text text-transparent">momentum.</span>
-              </div>
-            </h1>
+            {/* ── VOLTA title intro ──────────────────────────────────── */}
+            <div className="volta-title-wrap relative mb-2">
+              <h1
+                ref={heroTitleRef}
+                className="volta-name hero-line relative text-[7rem] font-black uppercase leading-[0.85] tracking-[-0.04em] md:text-[10rem]"
+              >
+                <span className="volta-letter inline-block bg-gradient-to-b from-white via-white to-white/40 bg-clip-text text-transparent">V</span>
+                <span className="volta-letter inline-block bg-gradient-to-b from-white via-white to-white/40 bg-clip-text text-transparent">O</span>
+                <span className="volta-letter inline-block bg-gradient-to-b from-white via-white to-white/40 bg-clip-text text-transparent">L</span>
+                <span className="volta-letter inline-block bg-gradient-to-b from-white via-white to-white/40 bg-clip-text text-transparent">T</span>
+                <span className="volta-letter inline-block bg-gradient-to-b from-[#e63946] to-[#ff6b35] bg-clip-text text-transparent">A</span>
+              </h1>
+              {/* Underline streak */}
+              <div className="volta-streak h-[4px] w-0 bg-gradient-to-r from-[#e63946] via-[#ff6b35] to-transparent" />
+              {/* Glow pulse behind title */}
+              <div className="volta-glow pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-[12rem] w-[24rem] rounded-full bg-[#e63946]/0 blur-[80px]" />
+            </div>
+
+            <p className="hero-line text-lg font-semibold uppercase tracking-[0.35em] text-white/30 md:text-xl">
+              Virtual Output & Live Training Arena
+            </p>
 
             {/* Accent divider */}
             <div className="hero-hr mt-6 h-[3px] w-24 bg-gradient-to-r from-[#e63946] to-[#ff6b35]" />
 
             <p className="hero-copy mt-6 max-w-2xl text-lg leading-8 text-white/55 md:text-xl">
-              PulseDrive is a real-time training experience where body movement
+              VOLTA is a real-time training experience where body movement
               drives a responsive visual world. Pose tracking, rep analysis, and
               live feedback turn workouts into something cinematic, measurable,
               and addictive in the best way.
@@ -564,7 +627,7 @@ export default function PulseDriveShowcase() {
                 <div>
                   <div className="text-[10px] font-bold uppercase tracking-[0.3em] text-[#e63946]/60">Featured system</div>
                   <div className="text-xl font-bold">
-                    PulseDrive Interface
+                    VOLTA Interface
                   </div>
                 </div>
                 <div className="flex items-center gap-2 rounded-md border border-[#e63946]/20 bg-[#e63946]/5 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-[#e63946]/70">
@@ -594,7 +657,7 @@ export default function PulseDriveShowcase() {
               <div className="float-slow mt-5 rounded-xl border border-white/6 bg-white/[0.03] p-5">
                 <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.3em] text-white/30">Core idea</div>
                 <p className="max-w-2xl text-sm leading-7 text-white/55">
-                  PulseDrive connects body movement with game-like response so
+                  VOLTA connects body movement with game-like response so
                   every rep feels visible, immediate, and charged with energy.
                 </p>
               </div>
@@ -682,7 +745,7 @@ export default function PulseDriveShowcase() {
                   more meaningful.
                 </h2>
                 <p className="mt-5 max-w-xl text-sm leading-7 text-white/50">
-                  This is where PulseDrive feels different: progress is not just
+                  This is where VOLTA feels different: progress is not just
                   stored, it is staged. Every action is reflected on screen with
                   motion and consequence.
                 </p>
@@ -795,7 +858,7 @@ export default function PulseDriveShowcase() {
           <div className="grid gap-5 lg:grid-cols-[0.85fr_1.15fr]">
             <div className="reveal hover-lift rounded-2xl border border-white/6 bg-white/[0.03] p-8 shadow-2xl shadow-black/30">
               <p className="text-sm leading-7 text-white/50">
-                PulseDrive combines frontend motion design, live body analysis,
+                VOLTA combines frontend motion design, live body analysis,
                 and streamed workout data into a system that feels polished
                 enough for a real product launch.
               </p>
@@ -828,7 +891,7 @@ export default function PulseDriveShowcase() {
               <div className="h-[2px] w-6 bg-[#e63946]" />
             </div>
             <h2 className="mx-auto max-w-3xl text-4xl font-black uppercase tracking-tight md:text-5xl">
-              PulseDrive turns fitness into a responsive digital{" "}
+              VOLTA turns fitness into a responsive digital{" "}
               <span className="bg-gradient-to-r from-[#e63946] to-[#ff6b35] bg-clip-text text-transparent">experience.</span>
             </h2>
             <p className="mx-auto mt-5 max-w-2xl text-sm leading-7 text-white/50">
