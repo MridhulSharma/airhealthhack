@@ -113,7 +113,7 @@ export default function Car3D({
   return (
     <group ref={carGroupRef}>
       {/* SCALE_CALIBRATION: adjust scale after first render */}
-      <primitive object={scene} scale={[0.8, 0.8, 0.8]} />
+      <primitive object={scene} scale={[80, 80, 80]} />
     </group>
   );
 }

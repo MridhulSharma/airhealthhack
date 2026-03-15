@@ -21,11 +21,28 @@ export function useRepCounter({ repCount, formScore }: RepData) {
   const setFormScore = useGameStore((s) => s.setFormScore);
   const setBoost = useGameStore((s) => s.setBoost);
   const storeCount = useGameStore((s) => s.repCount);
+  const isStarted = useGameStore((s) => s.isStarted);
 
   const boostTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const repOffsetRef = useRef<number | null>(null);
+
+  // When workout starts, snapshot the current WebSocket repCount as offset
+  // so only NEW reps after this point count toward the game.
+  useEffect(() => {
+    if (isStarted) {
+      repOffsetRef.current = null; // will be set on next repCount change
+    }
+  }, [isStarted]);
 
   useEffect(() => {
-    if (repCount > storeCount) {
+    // Capture offset on the first rep update after workout starts
+    if (repOffsetRef.current === null) {
+      repOffsetRef.current = repCount;
+      return;
+    }
+
+    const adjustedReps = repCount - repOffsetRef.current;
+    if (adjustedReps > storeCount) {
       incrementRep();
 
       // Trigger boost

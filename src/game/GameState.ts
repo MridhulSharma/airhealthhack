@@ -76,6 +76,7 @@ export const useGameStore = create<GameState>((set) => ({
 
   resetWorkout: () =>
     set({
+      selectedTheme: null,
       repCount: 0,
       formScore: 100,
       progress: 0,

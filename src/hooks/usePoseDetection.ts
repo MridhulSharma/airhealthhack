@@ -13,10 +13,15 @@ export function usePoseDetection() {
   const [repCount, setRepCount] = useState(0);
   const [formScore, setFormScore] = useState(95);
   const [elbowAngle, setElbowAngle] = useState(160);
+  const [elbowAngleL, setElbowAngleL] = useState(180);
+  const [elbowAngleR, setElbowAngleR] = useState(180);
   const [repState, setRepState] = useState<"idle" | "up" | "down">("idle");
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isMockMode, setIsMockMode] = useState(false);
+  const [calibrating, setCalibrating] = useState(false);
+  const [calibReps, setCalibReps] = useState(0);
+  const [fatigueIssues, setFatigueIssues] = useState<string[]>([]);
 
   const wsRef = useRef<WebSocket | null>(null);
   const mountedRef = useRef(true);
@@ -66,7 +71,12 @@ export function usePoseDetection() {
           setRepCount(data.repCount);
           setRepState(data.repState);
           setElbowAngle(data.elbowAngle);
+          setElbowAngleL(data.elbowAngleL ?? 180);
+          setElbowAngleR(data.elbowAngleR ?? 180);
           setFormScore(data.formScore);
+          setCalibrating(data.calibrating ?? false);
+          setCalibReps(data.calibReps ?? 0);
+          setFatigueIssues(data.fatigueIssues ?? []);
         } catch {
           // ignore malformed messages
         }
@@ -114,9 +124,14 @@ export function usePoseDetection() {
     repCount,
     repState,
     elbowAngle,
+    elbowAngleL,
+    elbowAngleR,
     formScore,
     isConnected,
     error,
     isMockMode,
+    calibrating,
+    calibReps,
+    fatigueIssues,
   };
 }

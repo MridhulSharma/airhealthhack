@@ -2,7 +2,7 @@
 
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Stars, Environment } from "@react-three/drei";
-import { useRef, useEffect, useState } from "react";
+import { Suspense, useRef, useEffect, useState, Component, type ReactNode } from "react";
 import * as THREE from "three";
 import Track3D from "./Track3D";
 import Car3D from "./Car3D";
@@ -168,36 +168,86 @@ function RendererSetup() {
   return null;
 }
 
+function LoadingFallback() {
+  return (
+    <mesh>
+      <boxGeometry args={[1, 1, 1]} />
+      <meshStandardMaterial color="#333" wireframe />
+    </mesh>
+  );
+}
+
+class Scene3DErrorBoundary extends Component<
+  { children: ReactNode },
+  { hasError: boolean; error: string }
+> {
+  state = { hasError: false, error: "" };
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error: error.message };
+  }
+
+  componentDidCatch(error: Error) {
+    console.error("[Scene3D] Failed to load:", error);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex h-full w-full items-center justify-center bg-black text-white">
+          <div className="text-center">
+            <p className="text-lg font-semibold">3D scene failed to load</p>
+            <p className="mt-2 text-sm text-gray-400">{this.state.error}</p>
+            <button
+              onClick={() => {
+                this.setState({ hasError: false, error: "" });
+              }}
+              className="mt-4 rounded-full bg-white/10 px-6 py-2 text-sm hover:bg-white/20"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export function Scene3D() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
   if (!mounted) return null;
 
   return (
-    <Canvas
-      shadows
-      dpr={[1, 1.5]}
-      camera={{ fov: 65, near: 0.1, far: 3000 }}
-      style={{ position: "absolute", inset: 0 }}
-    >
-      <RendererSetup />
-      <fog attach="fog" args={["#0a0f1a", 200, 1200]} />
-      <ambientLight intensity={0.5} />
-      <directionalLight
-        position={[200, 300, 100]}
-        intensity={1.5}
-        castShadow
-        shadow-mapSize={[1024, 1024]}
-        shadow-camera-near={1}
-        shadow-camera-far={2000}
-        shadow-camera-left={-500}
-        shadow-camera-right={500}
-        shadow-camera-top={500}
-        shadow-camera-bottom={-500}
-      />
-      <Environment preset="night" />
-      <Stars radius={800} depth={80} count={5000} factor={5} />
-      <GameLoop />
-    </Canvas>
+    <Scene3DErrorBoundary>
+      <Canvas
+        shadows
+        dpr={[1, 1.5]}
+        camera={{ fov: 65, near: 0.1, far: 3000 }}
+        style={{ position: "absolute", inset: 0 }}
+      >
+        <RendererSetup />
+        <fog attach="fog" args={["#0a0f1a", 200, 1200]} />
+        <ambientLight intensity={0.5} />
+        <directionalLight
+          position={[200, 300, 100]}
+          intensity={1.5}
+          castShadow
+          shadow-mapSize={[1024, 1024]}
+          shadow-camera-near={1}
+          shadow-camera-far={2000}
+          shadow-camera-left={-500}
+          shadow-camera-right={500}
+          shadow-camera-top={500}
+          shadow-camera-bottom={-500}
+        />
+        <Environment preset="night" />
+        <Stars radius={800} depth={80} count={5000} factor={5} />
+        <Suspense fallback={<LoadingFallback />}>
+          <GameLoop />
+        </Suspense>
+      </Canvas>
+    </Scene3DErrorBoundary>
   );
 }
