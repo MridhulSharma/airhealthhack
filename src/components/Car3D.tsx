@@ -74,13 +74,6 @@ export default function Car3D({
     carGroupRef.current.position.copy(positionRef.current);
     carGroupRef.current.quaternion.copy(quaternionRef.current);
 
-    // Rotate wheels based on speed
-    const wheelSpin = speed * 0.15;
-    if (wheelRF.current) wheelRF.current.rotation.x += wheelSpin;
-    if (wheelLF.current) wheelLF.current.rotation.x += wheelSpin;
-    if (wheelLR.current) wheelLR.current.rotation.x += wheelSpin;
-    if (wheelRR.current) wheelRR.current.rotation.x += wheelSpin;
-
     // Body roll on inner group — avoids conflicting with quaternion on outer group
     if (bodyRef.current) {
       bodyRef.current.rotation.z = THREE.MathUtils.lerp(

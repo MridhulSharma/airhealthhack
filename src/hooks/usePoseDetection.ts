@@ -1,146 +1,151 @@
-// Real WebSocket hook with mock fallback.
-// Connects to ws://localhost:8765 (pose_server.py).
-// Falls back to mock mode if connection fails within 3 seconds.
-// Return signature: { landmarks, repCount, repState, elbowAngle, formScore, isConnected, error, isMockMode }
+'use client'
+import { useEffect, useRef, useState, useCallback } from 'react'
 
-import { useState, useEffect, useRef, useCallback } from "react";
+const WS_URL = 'ws://localhost:8765'
+const MOCK_INTERVAL = 3000
+const CONNECT_TIMEOUT = 4000
+const RETRY_INTERVAL = 5000
 
-const WS_URL = "ws://localhost:8765";
-const MOCK_FALLBACK_MS = 3000;
+export interface PoseData {
+  landmarks: any[]
+  repCount: number
+  repState: string
+  elbowAngle: number
+  elbowAngleL: number
+  elbowAngleR: number
+  formScore: number
+  isConnected: boolean
+  isMockMode: boolean
+  error: string | null
+  calibrating: boolean
+  calibReps: number
+  fatigueIssues: string[]
+}
 
-export function usePoseDetection() {
-  const [landmarks, setLandmarks] = useState<number[][]>([]);
-  const [repCount, setRepCount] = useState(0);
-  const [formScore, setFormScore] = useState(95);
-  const [elbowAngle, setElbowAngle] = useState(160);
-  const [elbowAngleL, setElbowAngleL] = useState(180);
-  const [elbowAngleR, setElbowAngleR] = useState(180);
-  const [repState, setRepState] = useState<"idle" | "up" | "down">("idle");
-  const [isConnected, setIsConnected] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [isMockMode, setIsMockMode] = useState(false);
-  const [calibrating, setCalibrating] = useState(false);
-  const [calibReps, setCalibReps] = useState(0);
-  const [fatigueIssues, setFatigueIssues] = useState<string[]>([]);
+const defaultState: PoseData = {
+  landmarks: [],
+  repCount: 0,
+  repState: 'idle',
+  elbowAngle: 180,
+  elbowAngleL: 180,
+  elbowAngleR: 180,
+  formScore: 100,
+  isConnected: false,
+  isMockMode: false,
+  error: null,
+  calibrating: false,
+  calibReps: 0,
+  fatigueIssues: [],
+}
 
-  const wsRef = useRef<WebSocket | null>(null);
-  const mountedRef = useRef(true);
-  const mockTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const fallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+export function usePoseDetection(): PoseData {
+  const [data, setData] = useState<PoseData>(defaultState)
+  const wsRef = useRef<WebSocket | null>(null)
+  const mockRef = useRef<NodeJS.Timeout | null>(null)
+  const retryRef = useRef<NodeJS.Timeout | null>(null)
+  const mockRepCount = useRef(0)
+  const isMockRef = useRef(false)
 
-  // ── Mock mode ─────────────────────────────────────────────────────────
   const startMock = useCallback(() => {
-    if (!mountedRef.current) return;
-    setIsMockMode(true);
-    setIsConnected(true);
-    setError(null);
+    if (isMockRef.current) return
+    isMockRef.current = true
+    console.log('[usePoseDetection] Starting mock mode')
+    setData(d => ({ ...d, isMockMode: true, isConnected: true, error: null }))
 
-    mockTimerRef.current = setInterval(() => {
-      if (!mountedRef.current) return;
-      setRepCount((prev) => prev + 1);
-      setFormScore(Math.floor(Math.random() * 30) + 70);
-      setElbowAngle(Math.floor(Math.random() * 80) + 80);
-      setRepState((prev) => (prev === "up" ? "down" : "up"));
-    }, 3000);
-  }, []);
+    mockRef.current = setInterval(() => {
+      mockRepCount.current += 1
+      const formScore = 70 + Math.floor(Math.random() * 30)
+      const elbowAngle = 80 + Math.floor(Math.random() * 80)
+      setData(d => ({
+        ...d,
+        repCount: mockRepCount.current,
+        formScore,
+        elbowAngle,
+        elbowAngleL: elbowAngle - 5,
+        elbowAngleR: elbowAngle + 5,
+        repState: mockRepCount.current % 2 === 0 ? 'up' : 'down',
+        isMockMode: true,
+        isConnected: true,
+      }))
+    }, MOCK_INTERVAL)
+  }, [])
 
-  // ── WebSocket connection ──────────────────────────────────────────────
+  const stopMock = useCallback(() => {
+    isMockRef.current = false
+    if (mockRef.current) clearInterval(mockRef.current)
+    mockRef.current = null
+  }, [])
+
   const connect = useCallback(() => {
-    if (!mountedRef.current || isMockMode) return;
+    if (wsRef.current?.readyState === WebSocket.OPEN) return
 
     try {
-      const ws = new WebSocket(WS_URL);
-      wsRef.current = ws;
+      const ws = new WebSocket(WS_URL)
+      wsRef.current = ws
+
+      const timeout = setTimeout(() => {
+        if (ws.readyState !== WebSocket.OPEN) {
+          ws.close()
+          startMock()
+        }
+      }, CONNECT_TIMEOUT)
 
       ws.onopen = () => {
-        if (!mountedRef.current) return;
-        setIsConnected(true);
-        setError(null);
-        // Cancel mock fallback — real connection succeeded
-        if (fallbackTimerRef.current) {
-          clearTimeout(fallbackTimerRef.current);
-          fallbackTimerRef.current = null;
-        }
-      };
+        clearTimeout(timeout)
+        stopMock()
+        isMockRef.current = false
+        console.log('[usePoseDetection] Connected to pose server')
+        setData(d => ({ ...d, isConnected: true, isMockMode: false, error: null }))
+      }
 
-      ws.onmessage = (event) => {
-        if (!mountedRef.current) return;
+      ws.onmessage = (e) => {
         try {
-          const data = JSON.parse(event.data);
-          setLandmarks(data.landmarks ?? []);
-          setRepCount(data.repCount);
-          setRepState(data.repState);
-          setElbowAngle(data.elbowAngle);
-          setElbowAngleL(data.elbowAngleL ?? 180);
-          setElbowAngleR(data.elbowAngleR ?? 180);
-          setFormScore(data.formScore);
-          setCalibrating(data.calibrating ?? false);
-          setCalibReps(data.calibReps ?? 0);
-          setFatigueIssues(data.fatigueIssues ?? []);
-        } catch {
-          // ignore malformed messages
+          const payload = JSON.parse(e.data)
+          setData({
+            landmarks:    payload.landmarks    ?? [],
+            repCount:     payload.repCount     ?? 0,
+            repState:     payload.repState     ?? 'idle',
+            elbowAngle:   payload.elbowAngle   ?? 180,
+            elbowAngleL:  payload.elbowAngleL  ?? 180,
+            elbowAngleR:  payload.elbowAngleR  ?? 180,
+            formScore:    payload.formScore    ?? 100,
+            isConnected:  true,
+            isMockMode:   false,
+            error:        null,
+            calibrating:  payload.calibrating  ?? false,
+            calibReps:    payload.calibReps    ?? 0,
+            fatigueIssues: payload.fatigueIssues ?? [],
+          })
+        } catch (err) {
+          console.error('[usePoseDetection] Parse error:', err)
         }
-      };
-
-      ws.onclose = () => {
-        if (!mountedRef.current) return;
-        setIsConnected(false);
-      };
+      }
 
       ws.onerror = () => {
-        ws.close();
-      };
+        clearTimeout(timeout)
+        setData(d => ({ ...d, isConnected: false, error: 'Connection failed' }))
+      }
+
+      ws.onclose = () => {
+        clearTimeout(timeout)
+        setData(d => ({ ...d, isConnected: false }))
+        if (!isMockRef.current) {
+          retryRef.current = setTimeout(connect, RETRY_INTERVAL)
+        }
+      }
     } catch {
-      // WebSocket constructor failed
-      setIsConnected(false);
+      startMock()
     }
-  }, [isMockMode]);
+  }, [startMock, stopMock])
 
   useEffect(() => {
-    mountedRef.current = true;
-
-    // Try real WebSocket first
-    connect();
-
-    // If not connected within 3 seconds, fall back to mock
-    fallbackTimerRef.current = setTimeout(() => {
-      if (!mountedRef.current) return;
-      if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
-        wsRef.current?.close();
-        startMock();
-      }
-    }, MOCK_FALLBACK_MS);
-
+    connect()
     return () => {
-      mountedRef.current = false;
-      wsRef.current?.close();
-      if (mockTimerRef.current) clearInterval(mockTimerRef.current);
-      if (fallbackTimerRef.current) clearTimeout(fallbackTimerRef.current);
-    };
-  }, [connect, startMock]);
-
-  // Send a reset command to Python pose server
-  const resetCounter = useCallback(() => {
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ command: "reset" }));
+      wsRef.current?.close()
+      stopMock()
+      if (retryRef.current) clearTimeout(retryRef.current)
     }
-    setRepCount(0);
-  }, []);
+  }, [connect, stopMock])
 
-  return {
-    landmarks,
-    repCount,
-    repState,
-    elbowAngle,
-    elbowAngleL,
-    elbowAngleR,
-    formScore,
-    isConnected,
-    error,
-    isMockMode,
-    calibrating,
-    calibReps,
-    fatigueIssues,
-    resetCounter,
-  };
+  return data
 }

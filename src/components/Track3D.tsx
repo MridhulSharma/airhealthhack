@@ -15,13 +15,21 @@ export default function Track3D() {
     if (scene) (window as any).__scene = scene;
   }, [scene]);
 
-  // Enable shadows on all meshes
+  // Fix broken textures — replace failed texture loads with solid color fallback
   useEffect(() => {
     if (!scene) return;
-    scene.traverse((child) => {
-      if (child instanceof THREE.Mesh) {
-        child.castShadow = true;
-        child.receiveShadow = true;
+    scene.traverse((obj) => {
+      if ((obj as THREE.Mesh).isMesh) {
+        const mesh = obj as THREE.Mesh;
+        const materials = Array.isArray(mesh.material)
+          ? mesh.material
+          : [mesh.material];
+        materials.forEach((mat: any) => {
+          if (mat.map && mat.map.image === undefined) {
+            mat.map = null;
+            mat.needsUpdate = true;
+          }
+        });
       }
     });
   }, [scene]);
@@ -53,6 +61,18 @@ export default function Track3D() {
     const meshes = [...primary, ...secondary];
     (window as any).__roadMeshes = meshes;
     console.log(`Road meshes: ${primary.length} primary, ${secondary.length} secondary`);
+  }, [scene]);
+
+  // Dispose geometries on unmount to free GPU memory
+  useEffect(() => {
+    return () => {
+      scene.traverse((obj) => {
+        if ((obj as THREE.Mesh).isMesh) {
+          const mesh = obj as THREE.Mesh;
+          mesh.geometry?.dispose();
+        }
+      });
+    };
   }, [scene]);
 
   return (

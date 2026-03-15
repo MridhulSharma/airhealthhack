@@ -44,6 +44,20 @@ export default function WorkoutPage() {
   } = usePoseDetection();
   useRepCounter({ repCount, formScore });
 
+  // Game state for display
+  const gameRepCount = useGameStore((s) => s.repCount);
+  const gameProgress = useGameStore((s) => s.progress);
+  const gameSpeed = useGameStore((s) => s.speed);
+  const targetReps = useGameStore((s) => s.targetReps);
+
+  useEffect(() => {
+    if (isStarted) {
+      console.log(
+        `[Game] reps=${gameRepCount} progress=${gameProgress.toFixed(2)} speed=${gameSpeed.toFixed(2)}`
+      );
+    }
+  }, [gameRepCount, gameProgress, gameSpeed, isStarted]);
+
   // Loading state — simulates init before showing START overlay
   const [loadingStage, setLoadingStage] = useState<
     "camera" | "pose" | "ready"
@@ -190,25 +204,64 @@ export default function WorkoutPage() {
         </motion.div>
       )}
 
-      {/* ── Webcam PiP ─────────────────────────────────────────────────── */}
+      {/* ── Live camera feed — bottom left ─────────────────────────────── */}
       <div className="fixed bottom-4 left-4 z-20 flex flex-col gap-1">
-        <div className="flex items-center gap-1.5">
-          <div className="h-2 w-2 animate-pulse rounded-full bg-red-500" />
-          <span className="font-mono text-xs text-white">LIVE</span>
+        <div className="flex items-center gap-2 mb-1">
+          <div
+            className={`w-2 h-2 rounded-full ${
+              isConnected && !isMockMode
+                ? "bg-red-500 animate-pulse"
+                : "bg-yellow-500"
+            }`}
+          />
+          <span className="font-mono text-xs text-white">
+            {isConnected && !isMockMode
+              ? "LIVE"
+              : isMockMode
+              ? "DEMO"
+              : "CONNECTING..."}
+          </span>
           {calibrating && (
             <span className="font-mono text-xs text-blue-300">
               · calibrating {calibReps}/2
             </span>
           )}
         </div>
-        <video
-          ref={videoRef}
-          autoPlay
-          muted
-          playsInline
-          className="rounded-xl border border-white/20 object-cover bg-black"
-          style={{ width: 230, height: 173 }}
-        />
+        <div
+          className="relative rounded-xl overflow-hidden border border-white/20 bg-black"
+          style={{ width: 256, height: 192 }}
+        >
+          {isConnected && !isMockMode ? (
+            <img
+              src="http://localhost:8766/video"
+              alt="Live pose"
+              className="w-full h-full object-cover"
+              style={{ transform: "scaleX(-1)" }}
+            />
+          ) : (
+            <div className="w-full h-full flex flex-col items-center justify-center gap-2">
+              <div className="text-4xl opacity-30">🤸</div>
+              <span className="font-mono text-xs text-white/40">
+                {isMockMode ? "Demo mode" : "Starting camera..."}
+              </span>
+            </div>
+          )}
+          {fatigueIssues.length > 0 && (
+            <div className="absolute bottom-0 left-0 right-0 p-1 flex flex-col gap-0.5 bg-gradient-to-t from-black/80">
+              {fatigueIssues.slice(0, 2).map((issue, i) => (
+                <div
+                  key={i}
+                  className="font-mono text-xs text-red-300 text-center"
+                >
+                  {issue}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="font-mono text-xs text-white/60 text-center">
+          {gameRepCount} / {targetReps} reps
+        </div>
       </div>
 
       {/* ── Bottom-right HUD ─────────────────────────────────────────────── */}

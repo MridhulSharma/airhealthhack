@@ -232,34 +232,6 @@ export function Scene3D() {
 
   useEffect(() => setMounted(true), []);
 
-  // Handle WebGL context loss and recovery
-  useEffect(() => {
-    if (!mounted) return;
-
-    const handleContextLost = (e: Event) => {
-      e.preventDefault();
-      console.warn("[Scene3D] WebGL context lost — waiting for restore");
-      setContextLost(true);
-    };
-
-    const handleContextRestored = () => {
-      console.log("[Scene3D] WebGL context restored");
-      setContextLost(false);
-    };
-
-    const canvas = canvasRef.current;
-    if (canvas) {
-      canvas.addEventListener("webglcontextlost", handleContextLost);
-      canvas.addEventListener("webglcontextrestored", handleContextRestored);
-    }
-
-    return () => {
-      if (canvas) {
-        canvas.removeEventListener("webglcontextlost", handleContextLost);
-        canvas.removeEventListener("webglcontextrestored", handleContextRestored);
-      }
-    };
-  }, [mounted]);
 
   if (!mounted) return null;
 
@@ -284,30 +256,34 @@ export function Scene3D() {
     <Scene3DErrorBoundary>
       <Canvas
         ref={canvasRef}
-        dpr={[1, 1.25]}
-        camera={{ fov: 65, near: 0.1, far: 3000 }}
+        shadows={false}
+        dpr={[1, 1]}
+        camera={{ fov: 65, near: 0.1, far: 1500 }}
         style={{ position: "absolute", inset: 0 }}
         gl={{
+          powerPreference: "default",
           antialias: false,
-          powerPreference: "high-performance",
+          stencil: false,
+          depth: true,
           failIfMajorPerformanceCaveat: false,
+        }}
+        onCreated={({ gl }) => {
+          canvasRef.current = gl.domElement;
+          gl.domElement.addEventListener("webglcontextlost", (e) => {
+            e.preventDefault();
+            console.warn("WebGL context lost — will attempt recovery");
+            setContextLost(true);
+          });
+          gl.domElement.addEventListener("webglcontextrestored", () => {
+            console.log("WebGL context restored");
+            setContextLost(false);
+          });
         }}
       >
         <RendererSetup />
         <fog attach="fog" args={["#0a0f1a", 200, 1200]} />
         <ambientLight intensity={0.5} />
-        <directionalLight
-          position={[200, 300, 100]}
-          intensity={1.5}
-          castShadow
-          shadow-mapSize={[512, 512]}
-          shadow-camera-near={1}
-          shadow-camera-far={2000}
-          shadow-camera-left={-500}
-          shadow-camera-right={500}
-          shadow-camera-top={500}
-          shadow-camera-bottom={-500}
-        />
+        <directionalLight intensity={1.5} position={[200, 300, 100]} />
         <Environment preset="night" />
         <Stars radius={800} depth={80} count={3000} factor={5} />
         <Suspense fallback={<LoadingFallback />}>
