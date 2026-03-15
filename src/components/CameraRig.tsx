@@ -16,38 +16,48 @@ export default function CameraRig({
   boostActive,
 }: CameraRigProps) {
   const { camera } = useThree();
-  const tempVec = useRef(new THREE.Vector3());
-  const currentLookAt = useRef(new THREE.Vector3());
-  const idealPos = useRef(new THREE.Vector3());
-  const forward = useRef(new THREE.Vector3());
+  const smoothedPos = useRef(new THREE.Vector3());
+  const smoothedLookAt = useRef(new THREE.Vector3());
+  const initialized = useRef(false);
 
   useFrame(() => {
     if (!targetRef.current) return;
 
-    // Get car world position
-    targetRef.current.getWorldPosition(tempVec.current);
+    const carPos = new THREE.Vector3();
+    targetRef.current.getWorldPosition(carPos);
 
-    // Get car forward direction from quaternion
-    forward.current.set(0, 0, -1);
-    forward.current.applyQuaternion(targetRef.current.quaternion);
-    forward.current.normalize();
+    // Safety check
+    if (carPos.y < -50 || carPos.y > 200) return;
 
-    // Ideal camera position: behind and above the car
-    // carPos - forward * 12 + up * 5
-    idealPos.current
-      .copy(tempVec.current)
-      .sub(forward.current.clone().multiplyScalar(12))
-      .add(new THREE.Vector3(0, 5, 0));
+    // Travel direction along the track (direction car is moving)
+    const forward = new THREE.Vector3(0, 0, 1)
+      .applyQuaternion(targetRef.current.quaternion)
+      .normalize();
+
+    // Camera directly on top of the rear of the car: behind and high above
+    const idealPos = carPos
+      .clone()
+      .addScaledVector(forward, -4)
+      .add(new THREE.Vector3(0, 6, 0));
+
+    // Look-at: ahead of car at car height
+    const idealLookAt = carPos
+      .clone()
+      .addScaledVector(forward, 10);
+
+    // First frame: snap instantly
+    if (!initialized.current) {
+      smoothedPos.current.copy(idealPos);
+      smoothedLookAt.current.copy(idealLookAt);
+      initialized.current = true;
+    }
 
     // Smooth follow
-    camera.position.lerp(idealPos.current, 0.08);
+    smoothedPos.current.lerp(idealPos, 0.15);
+    smoothedLookAt.current.lerp(idealLookAt, 0.15);
 
-    // Look-at target: ahead of the car
-    const lookAtTarget = tempVec.current
-      .clone()
-      .add(forward.current.clone().multiplyScalar(8));
-    currentLookAt.current.lerp(lookAtTarget, 0.12);
-    camera.lookAt(currentLookAt.current);
+    camera.position.copy(smoothedPos.current);
+    camera.lookAt(smoothedLookAt.current);
 
     // Speed-reactive FOV
     if (camera instanceof THREE.PerspectiveCamera) {

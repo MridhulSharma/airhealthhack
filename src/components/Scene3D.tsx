@@ -7,11 +7,9 @@ import * as THREE from "three";
 import Track3D from "./Track3D";
 import Car3D from "./Car3D";
 import CameraRig from "./CameraRig";
-import { PostProcessing } from "./PostProcessing";
 import { raceEngine } from "@/game/RaceEngine";
 import { useGameStore } from "@/game/GameState";
 
-// Inner component — runs inside Canvas context
 function GameLoop() {
   const speed = useGameStore((s) => s.speed);
   const boostActive = useGameStore((s) => s.boostActive);
@@ -26,31 +24,85 @@ function GameLoop() {
   const checkpointsPassed = useRef<number[]>([]);
   const lastCheckpointIndex = useRef(-1);
   const carGroupRef = useRef<THREE.Group | null>(null);
+  const boostLightRef = useRef<THREE.PointLight>(null);
+  const raycaster = useRef(new THREE.Raycaster());
+  const downVec = useRef(new THREE.Vector3(0, -1, 0));
+  const smoothedY = useRef<number | null>(null);
 
   useFrame(() => {
     if (!isStarted) return;
 
+    // Boost light effect
+    if (boostLightRef.current) {
+      boostLightRef.current.intensity = THREE.MathUtils.lerp(
+        boostLightRef.current.intensity,
+        boostActive ? 8 : 0,
+        0.15
+      );
+    }
+
     // Advance car along spline
-    const speedFactor = speed * 0.00035 + (boostActive ? 0.0006 : 0);
+    const speedFactor = speed * 0.00018 + (boostActive ? 0.00038 : 0);
     tRef.current = (tRef.current + speedFactor) % 1;
 
     const pos = raceEngine.getTrackPosition(tRef.current);
-    const tangent = raceEngine.getTrackTangent(tRef.current);
-
-    // Y_OFFSET_CALIBRATION: adjust the +Y offset below after first render to sit car on track surface
-    positionRef.current.set(pos.x, pos.y + 1.2, pos.z);
-
-    // Build quaternion from tangent
-    const up = new THREE.Vector3(0, 1, 0);
-    const lookTarget = positionRef.current.clone().add(tangent);
-    const matrix = new THREE.Matrix4().lookAt(
-      positionRef.current,
-      lookTarget,
-      up
+    const lookAheadPos = raceEngine.getTrackPosition(
+      (tRef.current + 0.008) % 1
     );
-    quaternionRef.current.setFromRotationMatrix(matrix);
 
-    // Lateral force from tangent change
+    // Raycast downward onto the road mesh for exact surface Y
+    const roadMeshes = (window as any).__roadMeshes as
+      | THREE.Mesh[]
+      | undefined;
+
+    let surfaceY = pos.y + 1.8; // safe fallback
+
+    if (roadMeshes && roadMeshes.length > 0) {
+      raycaster.current.set(
+        new THREE.Vector3(pos.x, pos.y + 60, pos.z),
+        downVec.current
+      );
+      const hits = raycaster.current.intersectObjects(roadMeshes, false);
+      if (hits.length > 0) {
+        const rawY = hits[0].point.y + 1.8;
+        if (smoothedY.current === null) {
+          smoothedY.current = rawY;
+        } else {
+          smoothedY.current = THREE.MathUtils.lerp(
+            smoothedY.current,
+            rawY,
+            0.25
+          );
+        }
+        surfaceY = smoothedY.current;
+      }
+    }
+
+    positionRef.current.set(pos.x, surfaceY, pos.z);
+
+    // Car orientation — faces direction of travel including slope
+    const lookAheadWithY = new THREE.Vector3(
+      lookAheadPos.x,
+      surfaceY + (lookAheadPos.y - pos.y),
+      lookAheadPos.z
+    );
+
+    const rotMatrix = new THREE.Matrix4().lookAt(
+      positionRef.current,
+      lookAheadWithY,
+      new THREE.Vector3(0, 1, 0)
+    );
+    quaternionRef.current.setFromRotationMatrix(rotMatrix);
+
+    // Flip 180° — car faces forward not backward
+    const flip = new THREE.Quaternion().setFromAxisAngle(
+      new THREE.Vector3(0, 1, 0),
+      Math.PI
+    );
+    quaternionRef.current.multiply(flip);
+
+    // Lateral force for body roll
+    const tangent = raceEngine.getTrackTangent(tRef.current);
     const tangentDelta = tangent.x - prevTangentRef.current.x;
     lateralForceRef.current = THREE.MathUtils.lerp(
       lateralForceRef.current,
@@ -59,7 +111,7 @@ function GameLoop() {
     );
     prevTangentRef.current.copy(tangent);
 
-    // Checkpoint detection
+    // Checkpoint + lap detection
     const cp = raceEngine.checkCheckpoint(pos, lastCheckpointIndex.current);
     if (cp !== null) {
       lastCheckpointIndex.current = cp;
@@ -90,7 +142,19 @@ function GameLoop() {
         speed={speed}
         boostActive={boostActive}
       />
-      <PostProcessing boostActive={boostActive} />
+      {/* Boost point light — replaces post-processing bloom */}
+      <pointLight
+        ref={boostLightRef}
+        color="#fbbf24"
+        intensity={0}
+        distance={30}
+        decay={2}
+        position={[
+          positionRef.current.x,
+          positionRef.current.y + 2,
+          positionRef.current.z,
+        ]}
+      />
     </>
   );
 }
@@ -112,7 +176,7 @@ export function Scene3D() {
   return (
     <Canvas
       shadows
-      dpr={[1, 2]}
+      dpr={[1, 1.5]}
       camera={{ fov: 65, near: 0.1, far: 3000 }}
       style={{ position: "absolute", inset: 0 }}
     >
@@ -123,7 +187,7 @@ export function Scene3D() {
         position={[200, 300, 100]}
         intensity={1.5}
         castShadow
-        shadow-mapSize={[4096, 4096]}
+        shadow-mapSize={[1024, 1024]}
         shadow-camera-near={1}
         shadow-camera-far={2000}
         shadow-camera-left={-500}

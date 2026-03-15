@@ -4,7 +4,9 @@
       "Read(//c/Users/sharm/workspace/**)",
       "Bash(npx create-next-app@latest airhealth-frontend --typescript --tailwind --eslint --app --src-dir --no-turbopack --import-alias \"@/*\" --use-npm)",
       "Bash(cp -r /tmp/nextsetup/src /tmp/nextsetup/public /tmp/nextsetup/package.json /tmp/nextsetup/package-lock.json /tmp/nextsetup/tsconfig.json /tmp/nextsetup/next.config.ts /tmp/nextsetup/postcss.config.mjs /tmp/nextsetup/eslint.config.mjs /tmp/nextsetup/next-env.d.ts /c/Users/sharm/workspace/airhealth/ 2>&1)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(npx tsc:*)",
+      "Bash(node:*)"
     ]
   }
 }
